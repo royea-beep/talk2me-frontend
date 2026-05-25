@@ -2,6 +2,7 @@ import Link from "next/link";
 
 const NAV = [
   { href: "/", label: "Dashboard" },
+  { href: "/mega", label: "MEGA" },
   { href: "/projects", label: "Projects" },
   { href: "/gprompts", label: "G-PROMPTs" },
   { href: "/knowledge", label: "Knowledge" },
@@ -10,7 +11,7 @@ const NAV = [
 
 export default function Sidebar() {
   return (
-    <aside className="w-60 shrink-0 border-r border-slate-800 bg-slate-950/60 p-4">
+    <aside className="hidden md:block md:w-60 md:shrink-0 border-r border-slate-800 bg-slate-950/60 p-4">
       <div className="mb-6">
         <div className="text-xs uppercase tracking-wider text-slate-500">Empire</div>
         <div className="text-lg font-semibold text-slate-100">TALK2ME</div>

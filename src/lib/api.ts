@@ -6,7 +6,16 @@
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+// TODO(2026-Q3): Migrate to Path A — Supabase Auth verify_jwt=true with auth.getUser().
+// Shared-secret leaks via DevTools but is acceptable for Roye-only dashboard.
+const DASHBOARD_SECRET = process.env.NEXT_PUBLIC_DASHBOARD_SECRET ?? "";
 const EF_URL = `${SUPABASE_URL}/functions/v1/frontend_dashboard_data`;
+
+const EF_HEADERS: Record<string, string> = {
+  Authorization: `Bearer ${ANON_KEY}`,
+  apikey: ANON_KEY,
+  "X-Empire-Secret": DASHBOARD_SECRET,
+};
 
 export type Table =
   | "project_pipeline"
@@ -34,10 +43,7 @@ export async function fetchTable<T = Record<string, unknown>>(
     offset: String(opts.offset ?? 0),
   });
   const res = await fetch(`${EF_URL}?${params}`, {
-    headers: {
-      Authorization: `Bearer ${ANON_KEY}`,
-      apikey: ANON_KEY,
-    },
+    headers: EF_HEADERS,
     cache: "no-store",
   });
   if (!res.ok) {
@@ -133,10 +139,7 @@ export interface MegaResponse {
 
 export async function fetchMegaView(signal?: AbortSignal): Promise<MegaResponse> {
   const res = await fetch(`${EF_URL}?view=mega`, {
-    headers: {
-      Authorization: `Bearer ${ANON_KEY}`,
-      apikey: ANON_KEY,
-    },
+    headers: EF_HEADERS,
     cache: "no-store",
     signal,
   });
@@ -207,10 +210,7 @@ export interface TasksResponse {
 
 export async function fetchTasksView(signal?: AbortSignal): Promise<TasksResponse> {
   const res = await fetch(`${EF_URL}?view=tasks`, {
-    headers: {
-      Authorization: `Bearer ${ANON_KEY}`,
-      apikey: ANON_KEY,
-    },
+    headers: EF_HEADERS,
     cache: "no-store",
     signal,
   });

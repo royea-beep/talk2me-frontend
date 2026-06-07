@@ -1,10 +1,35 @@
+import Link from "next/link";
 import { fetchTable } from "@/lib/api";
 import ExpandableRow from "@/components/ExpandableRow";
 
 export const dynamic = "force-dynamic";
 
+function pickSlug(row: Record<string, unknown>): string | null {
+  const cs = row["canonical_slug"];
+  if (typeof cs === "string" && cs.length > 0) return cs;
+  const pn = row["project_name"];
+  if (typeof pn === "string" && pn.length > 0) return pn;
+  return null;
+}
+
 const COLS = [
-  { key: "project_name", label: "Project" },
+  {
+    key: "project_name",
+    label: "Project",
+    render: (v: unknown, row: Record<string, unknown>) => {
+      const slug = pickSlug(row);
+      const label = typeof v === "string" && v.length > 0 ? v : slug ?? "—";
+      if (!slug) return label;
+      return (
+        <Link
+          href={`/projects/${encodeURIComponent(slug)}`}
+          className="text-sky-300 hover:text-sky-200 underline-offset-2 hover:underline"
+        >
+          {label}
+        </Link>
+      );
+    },
+  },
   { key: "status", label: "Status" },
   { key: "current_step", label: "Step" },
   { key: "last_simulation_score", label: "Sim score" },
@@ -16,7 +41,9 @@ export default async function Page() {
   return (
     <div>
       <h2 className="text-2xl font-semibold text-slate-100 mb-1">Projects</h2>
-      <p className="text-sm text-slate-400 mb-6">{data.total_count} rows - click row to expand</p>
+      <p className="text-sm text-slate-400 mb-6">
+        {data.total_count} rows — click name to open briefing, row to expand raw
+      </p>
       {data.rows.length === 0 ? (
         <div className="rounded border border-slate-800 bg-slate-950/60 p-6 text-sm text-slate-400">
           No projects found. Check Supabase RLS or the EF whitelist.

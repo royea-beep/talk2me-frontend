@@ -220,3 +220,125 @@ export async function fetchTasksView(signal?: AbortSignal): Promise<TasksRespons
   }
   return res.json();
 }
+
+// ---------------------------------------------------------------------------
+// Briefing view — canonical per-project bundle (EF v7).
+// ---------------------------------------------------------------------------
+
+export interface BriefingIdentity {
+  tier: string | null;
+  domain: string | null;
+  surfaces: string[];
+  hands_off: boolean;
+  last_work: string | null;
+  last_focus: string | null;
+  last_blocker: string | null;
+  deploy_target: string | null;
+  lifecycle_stage: string | null;
+  work_order_type: string | null;
+}
+
+export interface BriefingStage {
+  num: number;
+  name: string;
+  score: string | number | null;
+  is_current: boolean;
+  description: string | null;
+}
+
+export interface BriefingWorkOrder {
+  stages: BriefingStage[];
+  status: string | null;
+  step_scores: Record<string, unknown> | null;
+  current_step: number | null;
+  total_stages: number;
+}
+
+export interface BriefingPreplan {
+  exists: boolean;
+  updated?: string;
+  readiness?: string;
+  parameters?: Record<string, unknown>;
+  tags?: string[];
+  bible_version?: string;
+  brief_version?: string;
+}
+
+export interface BriefingSkill {
+  name: string;
+  category: string | null;
+  description: string | null;
+}
+
+export interface BriefingSkills {
+  active: BriefingSkill[];
+  dormant: BriefingSkill[];
+  active_count: number;
+  dormant_count: number;
+}
+
+export interface BriefingConnection {
+  type: string | null;
+  target?: string | null;
+  source?: string | null;
+  is_active: boolean;
+  mechanism: string | null;
+}
+
+export interface BriefingConnections {
+  incoming: BriefingConnection[];
+  outgoing: BriefingConnection[];
+}
+
+export interface BriefingGem {
+  title: string;
+  created: string | null;
+  category: string | null;
+}
+
+export interface BriefingTask {
+  title: string;
+  priority: string | null;
+  age_days: number | null;
+}
+
+export interface BriefingRecentContext {
+  recent_gems: BriefingGem[];
+  open_tasks: BriefingTask[];
+  historical_sessions: number;
+}
+
+export interface BriefingRulesAndLocks {
+  hands_off: boolean;
+  special_rules: string | string[] | Record<string, unknown> | null;
+}
+
+export interface Briefing {
+  slug: string;
+  identity: BriefingIdentity;
+  work_order: BriefingWorkOrder;
+  preplan: BriefingPreplan;
+  skills: BriefingSkills;
+  connections: BriefingConnections;
+  recent_context: BriefingRecentContext;
+  rules_and_locks: BriefingRulesAndLocks;
+  briefing_generated_at: string;
+}
+
+export interface BriefingResponse {
+  view: "briefing";
+  generated_at: string;
+  briefing: Briefing;
+}
+
+export async function fetchBriefing(slug: string): Promise<Briefing | null> {
+  const url = `${EF_URL}?view=briefing&slug=${encodeURIComponent(slug)}`;
+  const res = await fetch(url, {
+    headers: EF_HEADERS,
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  const json = (await res.json()) as Partial<BriefingResponse> & { error?: string };
+  if (json.error || !json.briefing) return null;
+  return json.briefing;
+}

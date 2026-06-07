@@ -1,23 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 
 type Props = {
-  cols: Array<{ key: string; label: string; render?: (v: unknown) => React.ReactNode }>;
+  cols: Array<{
+    key: string;
+    label: string;
+    render?: (v: unknown, row: Record<string, unknown>) => React.ReactNode;
+  }>;
   row: Record<string, unknown>;
 };
 
 export default function ExpandableRow({ cols, row }: Props) {
   const [open, setOpen] = useState(false);
+
+  // Don't toggle expand when the click originated from an interactive child
+  // (link, button, input) — lets project-name links navigate cleanly.
+  const handleRowClick = (e: MouseEvent<HTMLTableRowElement>) => {
+    const t = e.target as HTMLElement;
+    if (t.closest("a,button,input,select,textarea")) return;
+    setOpen((o) => !o);
+  };
+
   return (
     <>
       <tr
-        onClick={() => setOpen((o) => !o)}
+        onClick={handleRowClick}
         className="cursor-pointer hover:bg-slate-800/60 border-b border-slate-800 transition-colors"
       >
         {cols.map((c) => (
           <td key={c.key} className="px-4 py-2 text-sm text-slate-200">
-            {c.render ? c.render(row[c.key]) : formatCell(row[c.key])}
+            {c.render ? c.render(row[c.key], row) : formatCell(row[c.key])}
           </td>
         ))}
         <td className="px-4 py-2 text-xs text-slate-500 w-8">{open ? "v" : ">"}</td>

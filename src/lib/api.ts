@@ -342,3 +342,45 @@ export async function fetchBriefing(slug: string): Promise<Briefing | null> {
   if (json.error || !json.briefing) return null;
   return json.briefing;
 }
+
+// ---------------------------------------------------------------------------
+// Timeline view — per-project conversation history (EF v8).
+// ---------------------------------------------------------------------------
+
+export interface TimelineEntry {
+  id: string;
+  actor: string;
+  type: string;
+  title: string | null;
+  summary: string | null;
+  content: string | null;
+  chat_url: string | null;
+  is_decision: boolean | string;
+  decision_text: string | null;
+  commit_hash: string | null;
+  vamos_number: number | null;
+  when: string;
+}
+
+export interface ProjectTimeline {
+  project: string;
+  total_entries: number;
+  decisions_count: number;
+  date_range: { earliest: string | null; latest: string | null };
+  timeline: TimelineEntry[];
+}
+
+export interface TimelineResponse {
+  view: "timeline";
+  generated_at: string;
+  timeline: ProjectTimeline;
+}
+
+export async function fetchTimeline(slug: string, limit = 100): Promise<ProjectTimeline | null> {
+  const url = `${EF_URL}?view=timeline&slug=${encodeURIComponent(slug)}&limit=${limit}`;
+  const res = await fetch(url, { headers: EF_HEADERS, cache: "no-store" });
+  if (!res.ok) return null;
+  const json = (await res.json()) as Partial<TimelineResponse> & { error?: string };
+  if (json.error || !json.timeline) return null;
+  return json.timeline;
+}

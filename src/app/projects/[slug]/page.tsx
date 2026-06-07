@@ -2,12 +2,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   fetchBriefing,
+  fetchTimeline,
   type Briefing,
   type BriefingConnection,
   type BriefingGem,
   type BriefingSkill,
   type BriefingStage,
   type BriefingTask,
+  type ProjectTimeline,
+  type TimelineEntry,
 } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -476,9 +479,148 @@ function RecentContextSection({ rc }: { rc: Briefing["recent_context"] }) {
   );
 }
 
+const ACTOR_COLORS: Record<string, string> = {
+  roye: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+  "strategic-ai": "bg-sky-500/15 text-sky-300 border-sky-500/30",
+  claude_code: "bg-violet-500/15 text-violet-300 border-violet-500/30",
+  manager: "bg-slate-500/15 text-slate-300 border-slate-500/30",
+  system: "bg-slate-500/15 text-slate-300 border-slate-500/30",
+};
+
+function isTruthy(v: unknown): boolean {
+  if (v === true) return true;
+  if (typeof v === "string") return v.toLowerCase() === "true";
+  return false;
+}
+
+function formatWhen(iso: string): string {
+  // Render as "YYYY-MM-DD HH:MM" — locale-safe and RTL-friendly.
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso.slice(0, 16);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function TimelineItem({ entry }: { entry: TimelineEntry }) {
+  const actor = entry.actor ?? "system";
+  const actorClass =
+    ACTOR_COLORS[actor] ?? "bg-slate-500/15 text-slate-300 border-slate-500/30";
+  const isDecision = isTruthy(entry.is_decision) || entry.type === "decision";
+  const icon = isDecision ? "◆" : "●";
+  const title = entry.title ?? entry.summary ?? "(no title)";
+  return (
+    <li
+      className={`relative rounded border bg-slate-950/30 px-4 py-3 ${
+        isDecision
+          ? "border-amber-500/40 ring-1 ring-amber-500/20"
+          : "border-slate-800"
+      }`}
+    >
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span
+            className={`text-base ${isDecision ? "text-amber-400" : "text-slate-500"}`}
+            aria-hidden
+          >
+            {icon}
+          </span>
+          <Pill className={actorClass}>{actor}</Pill>
+          {entry.type && entry.type !== "decision" && <Pill>{entry.type}</Pill>}
+          {entry.vamos_number != null && (
+            <Pill className="border-fuchsia-500/30 bg-fuchsia-500/15 text-fuchsia-300">
+              VAMOS {entry.vamos_number}
+            </Pill>
+          )}
+        </div>
+        <span
+          dir="ltr"
+          className="font-mono text-xs text-slate-500"
+        >
+          {formatWhen(entry.when)}
+        </span>
+      </div>
+      <div className="text-sm font-medium text-slate-100 line-clamp-2">{title}</div>
+      {entry.summary && entry.summary !== entry.title && (
+        <div className="mt-1 text-xs text-slate-400 line-clamp-2">{entry.summary}</div>
+      )}
+      {isDecision && entry.decision_text && entry.decision_text !== entry.title && (
+        <div className="mt-2 rounded border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-100/90 line-clamp-3">
+          {entry.decision_text}
+        </div>
+      )}
+      <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
+        {entry.chat_url && (
+          <a
+            href={entry.chat_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            dir="ltr"
+            className="text-sky-300 hover:text-sky-200 underline underline-offset-2"
+          >
+            פתח שיחה מקורית ↗
+          </a>
+        )}
+        {entry.commit_hash && (
+          <span
+            dir="ltr"
+            className="font-mono text-xs text-slate-400 bg-slate-900/60 border border-slate-800 rounded px-2 py-0.5"
+          >
+            {entry.commit_hash.slice(0, 10)}
+          </span>
+        )}
+      </div>
+    </li>
+  );
+}
+
+function TimelineSection({ timeline }: { timeline: ProjectTimeline | null }) {
+  if (!timeline || (timeline.timeline ?? []).length === 0) {
+    return (
+      <SectionCard title="Conversation Timeline">
+        <div className="rounded border border-slate-800 bg-slate-950/60 p-4 text-sm text-slate-400">
+          אין עדיין היסטוריית שיחות לפרויקט הזה
+        </div>
+      </SectionCard>
+    );
+  }
+  const dr = timeline.date_range ?? {};
+  const range =
+    dr.earliest && dr.latest
+      ? `${formatWhen(dr.earliest)} → ${formatWhen(dr.latest)}`
+      : null;
+  return (
+    <SectionCard
+      title="Conversation Timeline"
+      right={
+        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+          <Pill>{timeline.total_entries} entries</Pill>
+          <Pill className="border-amber-500/30 bg-amber-500/15 text-amber-300">
+            {timeline.decisions_count} decisions
+          </Pill>
+          {range && (
+            <span dir="ltr" className="font-mono text-xs text-slate-500">
+              {range}
+            </span>
+          )}
+        </div>
+      }
+    >
+      <ol className="space-y-3">
+        {timeline.timeline.map((e) => (
+          <TimelineItem key={e.id} entry={e} />
+        ))}
+      </ol>
+    </SectionCard>
+  );
+}
+
 export default async function ProjectDetailPage({ params }: PageProps) {
   const { slug } = await params;
-  const briefing = await fetchBriefing(slug);
+  const [briefing, timeline] = await Promise.all([
+    fetchBriefing(slug),
+    fetchTimeline(slug, 50),
+  ]);
   if (!briefing) notFound();
 
   return (
@@ -495,6 +637,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
       <SkillsSection skills={briefing.skills} />
       <ConnectionsSection connections={briefing.connections} />
       <RecentContextSection rc={briefing.recent_context} />
+      <TimelineSection timeline={timeline} />
     </div>
   );
 }

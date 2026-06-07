@@ -1,13 +1,20 @@
 "use client";
 
+import Link from "next/link";
 import { useState, type MouseEvent } from "react";
 
+type Col = {
+  key: string;
+  label: string;
+  /**
+   * If true, render this cell as a Link to /projects/[slug] using the
+   * `__slug` field on the row. The Link wraps the formatted cell value.
+   */
+  asLink?: boolean;
+};
+
 type Props = {
-  cols: Array<{
-    key: string;
-    label: string;
-    render?: (v: unknown, row: Record<string, unknown>) => React.ReactNode;
-  }>;
+  cols: Col[];
   row: Record<string, unknown>;
 };
 
@@ -22,17 +29,33 @@ export default function ExpandableRow({ cols, row }: Props) {
     setOpen((o) => !o);
   };
 
+  const slug = typeof row["__slug"] === "string" ? (row["__slug"] as string) : null;
+
   return (
     <>
       <tr
         onClick={handleRowClick}
         className="cursor-pointer hover:bg-slate-800/60 border-b border-slate-800 transition-colors"
       >
-        {cols.map((c) => (
-          <td key={c.key} className="px-4 py-2 text-sm text-slate-200">
-            {c.render ? c.render(row[c.key], row) : formatCell(row[c.key])}
-          </td>
-        ))}
+        {cols.map((c) => {
+          const formatted = formatCell(row[c.key]);
+          const content =
+            c.asLink && slug ? (
+              <Link
+                href={`/projects/${encodeURIComponent(slug)}`}
+                className="text-sky-300 hover:text-sky-200 underline-offset-2 hover:underline"
+              >
+                {formatted}
+              </Link>
+            ) : (
+              formatted
+            );
+          return (
+            <td key={c.key} className="px-4 py-2 text-sm text-slate-200">
+              {content}
+            </td>
+          );
+        })}
         <td className="px-4 py-2 text-xs text-slate-500 w-8">{open ? "v" : ">"}</td>
       </tr>
       {open && (

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   fetchBriefing,
+  fetchScorecard,
   fetchTimeline,
   type Briefing,
   type BriefingConnection,
@@ -10,6 +11,8 @@ import {
   type BriefingStage,
   type BriefingTask,
   type ProjectTimeline,
+  type Scorecard,
+  type ScorecardStage,
   type TimelineEntry,
 } from "@/lib/api";
 
@@ -615,15 +618,160 @@ function TimelineSection({ timeline }: { timeline: ProjectTimeline | null }) {
   );
 }
 
+function ScorecardSection({ sc }: { sc: Scorecard | null }) {
+  if (!sc) return null;
+  const pct = Math.max(0, Math.min(100, sc.progress.percent_complete ?? 0));
+  const barColor = pct >= 80 ? "bg-emerald-500" : pct >= 50 ? "bg-amber-500" : "bg-slate-600";
+  const done = sc.done.stages_completed ?? [];
+  const remaining = sc.not_done.stages_remaining ?? [];
+  return (
+    <SectionCard
+      title="Progress Scorecard"
+      right={
+        <span dir="ltr" className="font-mono text-sm text-slate-300">
+          {pct}%
+        </span>
+      }
+    >
+      <div className="mb-4">
+        <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+          <div
+            dir="ltr"
+            className={`h-full ${barColor}`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <div className="mt-1 flex items-center justify-between text-xs text-slate-500">
+          <span>
+            stage <span dir="ltr">{sc.progress.current_step ?? "—"}</span>
+            {" / "}
+            <span dir="ltr">{sc.progress.total_stages ?? "—"}</span>
+          </span>
+          <span>{sc.progress.status ?? ""}</span>
+        </div>
+      </div>
+
+      <div className="mb-4 grid grid-cols-2 gap-3 text-xs sm:grid-cols-4">
+        <div className="rounded border border-slate-800 bg-slate-950/40 px-3 py-2">
+          <div className="uppercase tracking-wider text-slate-500">gems</div>
+          <div dir="ltr" className="mt-0.5 text-lg font-semibold text-fuchsia-300 tabular-nums">
+            {sc.done.gems_captured.toLocaleString()}
+          </div>
+        </div>
+        <div className="rounded border border-slate-800 bg-slate-950/40 px-3 py-2">
+          <div className="uppercase tracking-wider text-slate-500">sessions</div>
+          <div dir="ltr" className="mt-0.5 text-lg font-semibold text-violet-300 tabular-nums">
+            {sc.done.sessions_worked.toLocaleString()}
+          </div>
+        </div>
+        <div className="rounded border border-slate-800 bg-slate-950/40 px-3 py-2">
+          <div className="uppercase tracking-wider text-slate-500">decisions</div>
+          <div dir="ltr" className="mt-0.5 text-lg font-semibold text-amber-300 tabular-nums">
+            {sc.done.decisions_logged.toLocaleString()}
+          </div>
+        </div>
+        <div className="rounded border border-slate-800 bg-slate-950/40 px-3 py-2">
+          <div className="uppercase tracking-wider text-slate-500">open tasks</div>
+          <div dir="ltr" className="mt-0.5 text-lg font-semibold text-sky-300 tabular-nums">
+            {sc.not_done.open_tasks.toLocaleString()}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div>
+          <div className="mb-2 text-xs uppercase tracking-wider text-emerald-400">
+            Done ({done.length})
+          </div>
+          {done.length > 0 ? (
+            <ul className="space-y-1">
+              {done.map((s: ScorecardStage) => (
+                <li
+                  key={s.num}
+                  className="flex items-center gap-2 rounded border border-emerald-500/20 bg-emerald-500/5 px-2 py-1 text-xs"
+                >
+                  <span className="text-emerald-400">✓</span>
+                  <span className="text-slate-400" dir="ltr">
+                    {s.num}.
+                  </span>
+                  <span className="text-slate-100">{s.name}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="text-sm text-slate-500">—</div>
+          )}
+        </div>
+        <div>
+          <div className="mb-2 text-xs uppercase tracking-wider text-amber-400">
+            Not Done ({remaining.length})
+          </div>
+          {remaining.length > 0 ? (
+            <ul className="space-y-1">
+              {remaining.map((s: ScorecardStage) => (
+                <li
+                  key={s.num}
+                  className="flex items-center gap-2 rounded border border-slate-800 bg-slate-950/40 px-2 py-1 text-xs"
+                >
+                  <span className="text-slate-500">○</span>
+                  <span className="text-slate-400" dir="ltr">
+                    {s.num}.
+                  </span>
+                  <span className="text-slate-300">{s.name}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="text-sm text-slate-500">—</div>
+          )}
+        </div>
+      </div>
+
+      {sc.next_action.suggested && (
+        <div className="mt-4 rounded border border-sky-500/40 bg-sky-500/5 px-4 py-3">
+          <div className="text-xs uppercase tracking-wider text-sky-400 mb-1">
+            Next action
+          </div>
+          <div className="text-sm text-slate-100">{sc.next_action.suggested}</div>
+          {sc.next_action.next_stage && (
+            <div className="mt-1 text-xs text-slate-400">
+              → stage{" "}
+              <span dir="ltr">{sc.next_action.next_stage.num}.</span>{" "}
+              {sc.next_action.next_stage.name}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+        <span className={sc.upgrade_options.has_mega_prompt ? "text-emerald-400" : "text-slate-600"}>
+          MEGA prompt {sc.upgrade_options.has_mega_prompt ? "✓" : "✗"}
+        </span>
+        <span className={sc.upgrade_options.has_real_preplan ? "text-emerald-400" : "text-slate-600"}>
+          real PREPLAN {sc.upgrade_options.has_real_preplan ? "✓" : "✗"}
+        </span>
+        <span>
+          <span dir="ltr">{sc.upgrade_options.timeline_entries}</span> timeline entries
+        </span>
+      </div>
+    </SectionCard>
+  );
+}
+
 export default async function ProjectDetailPage({ params }: PageProps) {
   const { slug } = await params;
-  const [briefing, timeline] = await Promise.all([
+  const [briefing, timeline, scorecard] = await Promise.all([
     fetchBriefing(slug),
     fetchTimeline(slug, 50),
+    fetchScorecard(slug),
   ]);
-  // 404 only if BOTH endpoints are empty. Some slugs (e.g. empire-hq manager)
+  // 404 only if ALL endpoints are empty. Some slugs (e.g. empire-hq manager)
   // have a timeline but no project_briefing — still worth surfacing the history.
-  if (!briefing && (!timeline || (timeline.timeline ?? []).length === 0)) {
+  if (
+    !briefing &&
+    (!timeline || (timeline.timeline ?? []).length === 0) &&
+    !scorecard
+  ) {
     notFound();
   }
 
@@ -636,14 +784,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
       </div>
 
       {briefing ? (
-        <>
-          <IdentitySection slug={briefing.slug} identity={briefing.identity} />
-          <WorkOrderSection wo={briefing.work_order} />
-          <PreplanSection preplan={briefing.preplan} />
-          <SkillsSection skills={briefing.skills} />
-          <ConnectionsSection connections={briefing.connections} />
-          <RecentContextSection rc={briefing.recent_context} />
-        </>
+        <IdentitySection slug={briefing.slug} identity={briefing.identity} />
       ) : (
         <section className="rounded-lg border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950 p-6">
           <h1 className="text-3xl font-bold text-slate-100">{slug}</h1>
@@ -651,6 +792,16 @@ export default async function ProjectDetailPage({ params }: PageProps) {
             לא נמצא תיק פרויקט עבור הסלאג הזה — מציג רק את ההיסטוריה.
           </p>
         </section>
+      )}
+      <ScorecardSection sc={scorecard} />
+      {briefing && (
+        <>
+          <WorkOrderSection wo={briefing.work_order} />
+          <PreplanSection preplan={briefing.preplan} />
+          <SkillsSection skills={briefing.skills} />
+          <ConnectionsSection connections={briefing.connections} />
+          <RecentContextSection rc={briefing.recent_context} />
+        </>
       )}
       <TimelineSection timeline={timeline} />
     </div>

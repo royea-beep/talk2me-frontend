@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 const NAV = [
+  { href: "/ecosystem", label: "Ecosystem", icon: "🌐" },
   { href: "/", label: "Dashboard" },
   { href: "/mega", label: "MEGA" },
   { href: "/projects", label: "Projects" },
@@ -17,15 +18,23 @@ export default function Sidebar() {
         <div className="text-lg font-semibold text-slate-100">TALK2ME</div>
       </div>
       <nav className="space-y-1">
-        {NAV.map((n) => (
-          <Link
-            key={n.href}
-            href={n.href}
-            className="block px-3 py-2 rounded text-sm text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
-          >
-            {n.label}
-          </Link>
-        ))}
+        {NAV.map((n) => {
+          const isEcosystem = n.href === "/ecosystem";
+          return (
+            <Link
+              key={n.href}
+              href={n.href}
+              className={`flex items-center gap-2 px-3 py-2 rounded text-sm transition-colors ${
+                isEcosystem
+                  ? "bg-slate-900 text-slate-100 ring-1 ring-slate-700 hover:bg-slate-800"
+                  : "text-slate-300 hover:bg-slate-800 hover:text-white"
+              }`}
+            >
+              {n.icon && <span aria-hidden>{n.icon}</span>}
+              <span>{n.label}</span>
+            </Link>
+          );
+        })}
       </nav>
       <div className="mt-8 text-xs text-slate-600">
         <div>iter-1 · read-only</div>

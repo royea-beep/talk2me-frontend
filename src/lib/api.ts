@@ -384,3 +384,132 @@ export async function fetchTimeline(slug: string, limit = 100): Promise<ProjectT
   if (json.error || !json.timeline) return null;
   return json.timeline;
 }
+
+// ---------------------------------------------------------------------------
+// Ecosystem view — empire-wide manager bird-eye (EF v9).
+// ---------------------------------------------------------------------------
+
+export interface EcosystemSummary {
+  total_projects: number;
+  live: number;
+  active: number;
+  idea: number;
+  paused_archived: number;
+  with_blocker: number;
+  total_gems: number;
+  total_skills: number;
+  total_sessions: number;
+  total_decisions: number;
+}
+
+export interface EcosystemDomainRow {
+  domain: string;
+  count: number;
+  avg_progress: number;
+}
+
+export interface EcosystemProject {
+  slug: string;
+  domain: string | null;
+  type: string | null;
+  status: string;
+  tier: string | null;
+  hands_off: boolean;
+  progress_pct: number | null;
+  current_focus: string | null;
+  blocker: string | null;
+  open_tasks: number;
+  has_mega: boolean;
+  has_preplan: boolean;
+  timeline_entries: number;
+}
+
+export interface EcosystemAttention {
+  slug: string;
+  reason: string;
+}
+
+export interface EcosystemData {
+  generated_at: string;
+  summary: EcosystemSummary;
+  by_domain: EcosystemDomainRow[];
+  projects: EcosystemProject[];
+  attention_needed: EcosystemAttention[];
+}
+
+export interface EcosystemResponse {
+  view: "ecosystem";
+  generated_at: string;
+  ecosystem: EcosystemData;
+}
+
+export async function fetchEcosystem(): Promise<EcosystemData | null> {
+  const res = await fetch(`${EF_URL}?view=ecosystem`, {
+    headers: EF_HEADERS,
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  const json = (await res.json()) as Partial<EcosystemResponse> & { error?: string };
+  if (json.error || !json.ecosystem) return null;
+  return json.ecosystem;
+}
+
+// ---------------------------------------------------------------------------
+// Scorecard view — per-project planned-vs-done + next action.
+// ---------------------------------------------------------------------------
+
+export interface ScorecardStage {
+  num: number;
+  name: string;
+}
+
+export interface Scorecard {
+  slug: string;
+  generated_at: string;
+  progress: {
+    status: string | null;
+    current_step: number | null;
+    total_stages: number;
+    percent_complete: number;
+  };
+  done: {
+    gems_captured: number;
+    sessions_worked: number;
+    decisions_logged: number;
+    stages_completed: ScorecardStage[] | null;
+  };
+  not_done: {
+    open_tasks: number;
+    current_blocker: string | null;
+    stages_remaining: ScorecardStage[] | null;
+  };
+  next_action: {
+    suggested: string | null;
+    next_stage: ScorecardStage | null;
+  };
+  upgrade_options: {
+    has_mega_prompt: boolean | null;
+    has_real_preplan: boolean | null;
+    timeline_entries: number;
+  };
+}
+
+export interface ScorecardResponse {
+  view: "scorecard";
+  generated_at: string;
+  scorecard: Scorecard;
+}
+
+export async function fetchScorecard(slug: string): Promise<Scorecard | null> {
+  const url = `${EF_URL}?view=scorecard&slug=${encodeURIComponent(slug)}`;
+  const res = await fetch(url, { headers: EF_HEADERS, cache: "no-store" });
+  if (!res.ok) return null;
+  const json = (await res.json()) as
+    | (Partial<ScorecardResponse> & { error?: string; scorecard?: Scorecard })
+    | (Scorecard & { error?: string });
+  if ((json as { error?: string }).error) return null;
+  // EF may return the scorecard at the top level OR nested.
+  const sc = (json as { scorecard?: Scorecard }).scorecard ?? (json as Scorecard);
+  if (!sc || !sc.slug) return null;
+  return sc;
+}

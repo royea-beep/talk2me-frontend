@@ -621,7 +621,11 @@ export default async function ProjectDetailPage({ params }: PageProps) {
     fetchBriefing(slug),
     fetchTimeline(slug, 50),
   ]);
-  if (!briefing) notFound();
+  // 404 only if BOTH endpoints are empty. Some slugs (e.g. empire-hq manager)
+  // have a timeline but no project_briefing — still worth surfacing the history.
+  if (!briefing && (!timeline || (timeline.timeline ?? []).length === 0)) {
+    notFound();
+  }
 
   return (
     <div className="space-y-6">
@@ -631,12 +635,23 @@ export default async function ProjectDetailPage({ params }: PageProps) {
         </Link>
       </div>
 
-      <IdentitySection slug={briefing.slug} identity={briefing.identity} />
-      <WorkOrderSection wo={briefing.work_order} />
-      <PreplanSection preplan={briefing.preplan} />
-      <SkillsSection skills={briefing.skills} />
-      <ConnectionsSection connections={briefing.connections} />
-      <RecentContextSection rc={briefing.recent_context} />
+      {briefing ? (
+        <>
+          <IdentitySection slug={briefing.slug} identity={briefing.identity} />
+          <WorkOrderSection wo={briefing.work_order} />
+          <PreplanSection preplan={briefing.preplan} />
+          <SkillsSection skills={briefing.skills} />
+          <ConnectionsSection connections={briefing.connections} />
+          <RecentContextSection rc={briefing.recent_context} />
+        </>
+      ) : (
+        <section className="rounded-lg border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950 p-6">
+          <h1 className="text-3xl font-bold text-slate-100">{slug}</h1>
+          <p className="mt-2 text-sm text-slate-400">
+            לא נמצא תיק פרויקט עבור הסלאג הזה — מציג רק את ההיסטוריה.
+          </p>
+        </section>
+      )}
       <TimelineSection timeline={timeline} />
     </div>
   );

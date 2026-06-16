@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import ProjectPulse from "@/components/ProjectPulse";
 import {
   fetchBriefing,
+  fetchProject,
   fetchScorecard,
   fetchTimeline,
   type Briefing,
@@ -760,17 +762,22 @@ function ScorecardSection({ sc }: { sc: Scorecard | null }) {
 
 export default async function ProjectDetailPage({ params }: PageProps) {
   const { slug } = await params;
-  const [briefing, timeline, scorecard] = await Promise.all([
+  const [briefing, timeline, scorecard, projectDetail] = await Promise.all([
     fetchBriefing(slug),
     fetchTimeline(slug, 50),
     fetchScorecard(slug),
+    fetchProject(slug),
   ]);
+  const hasPulse =
+    !!projectDetail &&
+    (!!projectDetail.card || projectDetail.actions.length > 0 || !!projectDetail.tasks);
   // 404 only if ALL endpoints are empty. Some slugs (e.g. empire-hq manager)
   // have a timeline but no project_briefing — still worth surfacing the history.
   if (
     !briefing &&
     (!timeline || (timeline.timeline ?? []).length === 0) &&
-    !scorecard
+    !scorecard &&
+    !hasPulse
   ) {
     notFound();
   }
@@ -793,6 +800,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
           </p>
         </section>
       )}
+      {hasPulse && projectDetail && <ProjectPulse detail={projectDetail} />}
       <ScorecardSection sc={scorecard} />
       {briefing && (
         <>

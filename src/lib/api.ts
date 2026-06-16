@@ -590,3 +590,141 @@ export async function fetchBurning(): Promise<BurningResponse | null> {
   if (json.error || !json.burning) return null;
   return json as BurningResponse;
 }
+
+// ---------------------------------------------------------------------------
+// Project drill-down view (EF v11) — tasks + per-project burning actions + v2 card.
+// ---------------------------------------------------------------------------
+
+export interface ProjectTasksSummary {
+  pending: number;
+  in_progress: number;
+  blocked: number;
+  partial: number;
+  failed: number;
+  done: number;
+  total_tasks: number;
+  avg_completion_pct: number;
+}
+
+export interface ProjectAction {
+  id: string;
+  title: string;
+  score: number;
+  priority: string | null;
+  hours_old: number;
+  kind: string | null;
+  recommended_actor: string | null;
+}
+
+// v2 card — defensive: only the fields we render are typed, rest passthrough.
+export interface ProjectCard {
+  slug: string;
+  name?: string | null;
+  category?: string | null;
+  health_score?: number | null;
+  open_risks?: number | null;
+  top_risk_title?: string | null;
+  top_risk_score?: number | null;
+  monthly_cost?: number | null;
+  last_activity?: string | null;
+  features_shipped?: number | null;
+  features_missing?: number | null;
+  events_7d?: number | null;
+  folder_path?: string | null;
+  supabase_project_id?: string | null;
+  status?: string | null;
+  stage?: string | null;
+  daily_active?: number | null;
+  [k: string]: unknown;
+}
+
+export interface ProjectDetail {
+  slug: string;
+  tasks: ProjectTasksSummary | null;
+  actions: ProjectAction[];
+  card: ProjectCard | null;
+}
+
+export interface ProjectResponse {
+  view: "project";
+  generated_at: string;
+  project_detail: ProjectDetail;
+}
+
+export async function fetchProject(slug: string): Promise<ProjectDetail | null> {
+  const res = await fetch(`${EF_URL}?view=project&slug=${encodeURIComponent(slug)}`, {
+    headers: EF_HEADERS,
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  const json = (await res.json()) as Partial<ProjectResponse> & { error?: string };
+  if (json.error || !json.project_detail) return null;
+  return json.project_detail;
+}
+
+// ---------------------------------------------------------------------------
+// System view (EF v11) — cost + cron health + telegram bots.
+// ---------------------------------------------------------------------------
+
+export interface CostProvider {
+  count: number;
+  total_cost_usd: number;
+}
+
+export interface SystemCost {
+  by_provider: Record<string, CostProvider>;
+  monthly_totals: {
+    net_usd: number;
+    total_revenue_usd: number;
+    total_estimated_spend_usd: number;
+  };
+  free_tier_projects: string[];
+  paid_tier_projects: string[];
+}
+
+export interface CronProject {
+  project_slug: string;
+  status: string;
+  total_crons: number;
+  active_crons: number;
+  failed_24h: number;
+  reported_at: string | null;
+}
+
+export interface SystemCron {
+  as_of: string;
+  projects: CronProject[];
+  unreported_projects: string[];
+}
+
+export interface TelegramBot {
+  username: string;
+  project: string;
+  active: boolean;
+  webhook: boolean;
+  messages: number;
+  last_msg: string | null;
+}
+
+export interface SystemData {
+  cost: SystemCost | null;
+  cron: SystemCron | null;
+  bots: TelegramBot[];
+}
+
+export interface SystemResponse {
+  view: "system";
+  generated_at: string;
+  system: SystemData;
+}
+
+export async function fetchSystem(): Promise<SystemData | null> {
+  const res = await fetch(`${EF_URL}?view=system`, {
+    headers: EF_HEADERS,
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  const json = (await res.json()) as Partial<SystemResponse> & { error?: string };
+  if (json.error || !json.system) return null;
+  return json.system;
+}

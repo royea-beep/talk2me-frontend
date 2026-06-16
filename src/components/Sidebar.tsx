@@ -8,6 +8,7 @@ const NAV = [
   { href: "/gprompts", label: "G-PROMPTs" },
   { href: "/knowledge", label: "Knowledge" },
   { href: "/sessions", label: "Sessions" },
+  { href: "/system", label: "System", icon: "🩺" },
 ];
 
 export default function Sidebar() {

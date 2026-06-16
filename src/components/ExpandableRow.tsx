@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useState, type MouseEvent } from "react";
+import VerifierIcons from "@/components/VerifierIcons";
+import type { VerifierFlag } from "@/lib/verifier";
 
 type Col = {
   key: string;
@@ -11,6 +13,11 @@ type Col = {
    * `__slug` field on the row. The Link wraps the formatted cell value.
    */
   asLink?: boolean;
+  /**
+   * If true, render this cell as verifier icons from a serializable
+   * VerifierFlag[] stored on the row at `key` (computed server-side).
+   */
+  asFlags?: boolean;
 };
 
 type Props = {
@@ -38,6 +45,14 @@ export default function ExpandableRow({ cols, row }: Props) {
         className="cursor-pointer hover:bg-slate-800/60 border-b border-slate-800 transition-colors"
       >
         {cols.map((c) => {
+          if (c.asFlags) {
+            const flags = Array.isArray(row[c.key]) ? (row[c.key] as VerifierFlag[]) : [];
+            return (
+              <td key={c.key} className="px-4 py-2 text-sm text-slate-200">
+                <VerifierIcons flags={flags} />
+              </td>
+            );
+          }
           const formatted = formatCell(row[c.key]);
           const content =
             c.asLink && slug ? (

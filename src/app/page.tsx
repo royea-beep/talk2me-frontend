@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { fetchCount, type Table } from "@/lib/api";
+import { fetchCount, fetchBurning, type Table } from "@/lib/api";
+import BurningSection from "@/components/BurningSection";
 
 export const dynamic = "force-dynamic";
 
@@ -11,18 +12,22 @@ const CARDS: Array<{ table: Table; label: string; href: string; tone: string }> 
 ];
 
 export default async function Home() {
-  const counts = await Promise.all(
-    CARDS.map(async (c) => {
-      try {
-        return { ...c, count: await fetchCount(c.table), error: null as string | null };
-      } catch (e) {
-        return { ...c, count: null as number | null, error: String(e) };
-      }
-    }),
-  );
+  const [counts, burning] = await Promise.all([
+    Promise.all(
+      CARDS.map(async (c) => {
+        try {
+          return { ...c, count: await fetchCount(c.table), error: null as string | null };
+        } catch (e) {
+          return { ...c, count: null as number | null, error: String(e) };
+        }
+      }),
+    ),
+    fetchBurning(),
+  ]);
 
   return (
     <div>
+      {burning && <BurningSection burning={burning.burning} health={burning.project_health} />}
       <div className="mb-6">
         <h2 className="text-2xl font-semibold text-slate-100">Empire snapshot</h2>
         <p className="text-sm text-slate-400 mt-1">

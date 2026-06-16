@@ -1,11 +1,15 @@
 import Link from "next/link";
 import {
   fetchEcosystem,
+  fetchBurning,
   type EcosystemAttention,
   type EcosystemDomainRow,
   type EcosystemProject,
   type EcosystemSummary,
+  type ProjectHealth,
 } from "@/lib/api";
+import { projectVerifierFlags } from "@/lib/verifier";
+import VerifierIcons from "@/components/VerifierIcons";
 
 export const dynamic = "force-dynamic";
 
@@ -120,7 +124,7 @@ function ByDomainSection({ rows }: { rows: EcosystemDomainRow[] }) {
   );
 }
 
-function ProjectCard({ p }: { p: EcosystemProject }) {
+function ProjectCard({ p, health }: { p: EcosystemProject; health?: ProjectHealth }) {
   const tierClass =
     p.tier && TIER_COLORS[p.tier]
       ? TIER_COLORS[p.tier]
@@ -128,6 +132,7 @@ function ProjectCard({ p }: { p: EcosystemProject }) {
   const statusClass =
     STATUS_COLORS[p.status] ?? "bg-slate-500/15 text-slate-300 border-slate-500/30";
   const pct = p.progress_pct ?? 0;
+  const flags = projectVerifierFlags(health);
   return (
     <Link
       href={`/projects/${encodeURIComponent(p.slug)}`}
@@ -135,6 +140,7 @@ function ProjectCard({ p }: { p: EcosystemProject }) {
     >
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <span className="text-base font-semibold text-slate-100">{p.slug}</span>
+        <VerifierIcons flags={flags} />
         {p.tier && <Pill className={tierClass}>{p.tier}</Pill>}
         <Pill className={statusClass}>{p.status}</Pill>
         {p.hands_off && (
@@ -190,7 +196,13 @@ function ProjectCard({ p }: { p: EcosystemProject }) {
   );
 }
 
-function ProjectsGrid({ projects }: { projects: EcosystemProject[] }) {
+function ProjectsGrid({
+  projects,
+  health,
+}: {
+  projects: EcosystemProject[];
+  health: Record<string, ProjectHealth>;
+}) {
   const sorted = [...projects].sort((a, b) => {
     const sa = STATUS_ORDER[a.status] ?? 99;
     const sb = STATUS_ORDER[b.status] ?? 99;
@@ -204,7 +216,7 @@ function ProjectsGrid({ projects }: { projects: EcosystemProject[] }) {
       </h2>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
         {sorted.map((p) => (
-          <ProjectCard key={p.slug} p={p} />
+          <ProjectCard key={p.slug} p={p} health={health[p.slug]} />
         ))}
       </div>
     </section>
@@ -243,7 +255,8 @@ function AttentionPanel({ items }: { items: EcosystemAttention[] }) {
 }
 
 export default async function EcosystemPage() {
-  const eco = await fetchEcosystem();
+  const [eco, burning] = await Promise.all([fetchEcosystem(), fetchBurning()]);
+  const health = burning?.project_health ?? {};
   if (!eco) {
     return (
       <div className="rounded border border-rose-500/40 bg-rose-500/10 p-6 text-sm text-rose-200">
@@ -266,7 +279,7 @@ export default async function EcosystemPage() {
       <HeroStats s={eco.summary} />
       <ByDomainSection rows={eco.by_domain ?? []} />
       <AttentionPanel items={eco.attention_needed ?? []} />
-      <ProjectsGrid projects={eco.projects ?? []} />
+      <ProjectsGrid projects={eco.projects ?? []} health={health} />
     </div>
   );
 }

@@ -1,4 +1,5 @@
-import { fetchTable } from "@/lib/api";
+import { fetchTable, fetchBurning } from "@/lib/api";
+import { projectVerifierFlags } from "@/lib/verifier";
 import ExpandableRow from "@/components/ExpandableRow";
 
 export const dynamic = "force-dynamic";
@@ -17,15 +18,24 @@ const COLS = [
   { key: "current_step", label: "Step" },
   { key: "last_simulation_score", label: "Sim score" },
   { key: "updated_at", label: "Updated" },
+  { key: "__flags", label: "אימות", asFlags: true },
 ];
 
 export default async function Page() {
-  const data = await fetchTable("project_pipeline", { limit: 200 });
+  const [data, burning] = await Promise.all([
+    fetchTable("project_pipeline", { limit: 200 }),
+    fetchBurning(),
+  ]);
+  const health = burning?.project_health ?? {};
   // Enrich rows with a __slug field so ExpandableRow can wrap the project name
-  // in a Link without crossing the server→client boundary with a function.
+  // in a Link without crossing the server→client boundary with a function, and
+  // a __flags array (serializable) so it can render verifier icons.
   const rows = data.rows.map((r) => {
     const row = r as Record<string, unknown>;
-    return { ...row, __slug: pickSlug(row) };
+    const slug = pickSlug(row);
+    const updatedAt = typeof row["updated_at"] === "string" ? (row["updated_at"] as string) : null;
+    const flags = projectVerifierFlags(slug ? health[slug] : null, updatedAt);
+    return { ...row, __slug: slug, __flags: flags };
   });
   return (
     <div>

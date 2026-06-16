@@ -513,3 +513,80 @@ export async function fetchScorecard(slug: string): Promise<Scorecard | null> {
   if (!sc || !sc.slug) return null;
   return sc;
 }
+
+// ---------------------------------------------------------------------------
+// Burning view — "מה בוער עכשיו" daily-attention inbox (EF v10).
+// empire_action_queue(5) + attention_summary() + run_manager_self_checks(),
+// plus a project_health map used to compute verifier icons.
+// ---------------------------------------------------------------------------
+
+export interface BurningAction {
+  id: string;
+  score: number;
+  title: string;
+  project: string | null;
+  priority: string | null;
+  hours_old: number;
+  assigned_to: string | null;
+}
+
+export interface AttentionProblemProject {
+  events: number;
+  project: string;
+  miss_rate_pct: number;
+}
+
+export interface BurningAttention {
+  by_status?: Record<string, number>;
+  total_events: number;
+  frustration_events: number;
+  followup_required_events: number;
+  most_problematic_projects: AttentionProblemProject[];
+}
+
+export type Severity = "critical" | "high" | "medium" | "low";
+
+export interface FiringRule {
+  rule: string;
+  name: string;
+  severity: Severity;
+  count: number;
+}
+
+export interface BurningSelfChecks {
+  firing_by_severity: Record<Severity, number>;
+  firing_rules: FiringRule[];
+  rules_count: number;
+  evaluated_at: string | null;
+}
+
+export interface BurningData {
+  queue_size: number;
+  top_actions: BurningAction[];
+  attention: BurningAttention | null;
+  self_checks: BurningSelfChecks;
+}
+
+export interface ProjectHealth {
+  health_score: number | null;
+  daily_active: number | null;
+  last_activity: string | null;
+}
+
+export interface BurningResponse {
+  view: "burning";
+  generated_at: string;
+  burning: BurningData;
+  project_health: Record<string, ProjectHealth>;
+}
+
+export async function fetchBurning(): Promise<BurningResponse | null> {
+  const res = await fetch(`${EF_URL}?view=burning`, {
+    headers: EF_HEADERS,
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  const json = (await res.json()) as Partial<BurningResponse> & { error?: string };
+  if (json.error || !json.burning) return null;
+  return json as BurningResponse;
+}
